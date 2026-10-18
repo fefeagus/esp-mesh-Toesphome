@@ -1,4 +1,5 @@
 dependencies:
+  espressif/cjson: "^1.7.19"
   idf: ">=5.0"
   mesh_lite:
     version: "*"
