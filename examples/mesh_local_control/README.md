@@ -11,6 +11,10 @@ This example will introduce how to implement a device connection to a remote ext
 
 This example implements the function of device data transmission in the mesh network to the TCP server.
 
+In this workspace configuration, this example is restricted to a non-root
+Mesh-Lite node. It must join an existing root node; it cannot provide the
+mesh's router uplink by itself.
+
 ## Hardware
 
 * At least 2 x ESP32 development boards

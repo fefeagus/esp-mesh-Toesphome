@@ -8,6 +8,14 @@ It introduces a quick way to build an ESP-Mesh-Lite network without a router. Fo
 
 ## Configure
 
+This profile creates a local ESP-Mesh-Lite network without an Internet uplink.
+The nodes' internal SoftAPs are still required for Mesh-Lite parent-child
+connections. Their SSIDs use the `ESP_Mesh_` prefix; they are for mesh nodes,
+not laptop Internet access.
+
+Set `Root device` on the root build only. Use the same mesh ID, mesh channel,
+and SoftAP password in both builds.
+
 To run this example, you need at least two development boards, one configured as a root node, and the other a non-root node. In this example, all the devices are non-root nodes by default.
 
 - Root node: There is only one root node in an ESP-Mesh-Lite network. `MESH-LITE` networks can be differentiated by their `MESH_LITE_ID` and channels.
@@ -23,6 +31,37 @@ You can also go to the submenu `Component config -> ESP Wi-Fi Mesh Lite`, and co
 <img src="https://raw.githubusercontent.com/espressif/esp-mesh-lite/master/examples/no_router/mesh_config.png" alt="mesh_config" width="80%" div align=center />
 
 ## Run
+
+Build and flash the root first, then build and flash the child. From an ESP-IDF
+PowerShell terminal, for example:
+
+```powershell
+& 'C:\esp\esp-idf-v5.5\export.ps1'
+cd examples\no_router
+idf.py -B build-root -D "SDKCONFIG=sdkconfig.root" set-target esp32c3
+idf.py -B build-root -D "SDKCONFIG=sdkconfig.root" menuconfig
+idf.py -B build-root -D "SDKCONFIG=sdkconfig.root" build
+idf.py -B build-root -D "SDKCONFIG=sdkconfig.root" -p COM6 flash monitor
+```
+
+In the root `menuconfig`, enable `Root device`. For the child, use its own build
+directory and sdkconfig:
+
+```powershell
+idf.py -B build-child -D "SDKCONFIG=sdkconfig.child" set-target esp32c3
+idf.py -B build-child -D "SDKCONFIG=sdkconfig.child" menuconfig
+idf.py -B build-child -D "SDKCONFIG=sdkconfig.child" build
+idf.py -B build-child -D "SDKCONFIG=sdkconfig.child" -p COM5 flash monitor
+```
+
+In the child `menuconfig`, leave `Root device` disabled and select the same
+mesh channel. Set the same SoftAP password in both builds.
+
+Choose the actual, distinct COM port for each board in Device Manager. Do not
+join the `ESP_Mesh_...` SoftAP from a laptop for Internet; it is the mesh link
+used by ESP nodes. The serial monitor should show the root at `layer: 1` and
+the child at `layer: 2` with the root's AP BSSID as its parent. Use `Ctrl+]` to
+exit the monitor.
 
 1. Initialize Wi-Fi, and start ESP-Mesh-Lite according to configuration;
 2. Create a timer: print at the specified time the ESP-Mesh-Lite network information about layers, and the parent node's signal strength and the remaining memory.

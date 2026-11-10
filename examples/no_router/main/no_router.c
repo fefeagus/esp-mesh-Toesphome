@@ -95,29 +95,21 @@ void app_wifi_set_softap_info(void)
     char softap_ssid[33];
     char softap_psw[64];
     uint8_t softap_mac[6];
-    size_t ssid_size = sizeof(softap_ssid);
-    size_t psw_size = sizeof(softap_psw);
     esp_wifi_get_mac(WIFI_IF_AP, softap_mac);
     memset(softap_ssid, 0x0, sizeof(softap_ssid));
     memset(softap_psw, 0x0, sizeof(softap_psw));
 
-    if (esp_mesh_lite_get_softap_ssid_from_nvs(softap_ssid, &ssid_size) == ESP_OK) {
-        ESP_LOGI(TAG, "Get ssid from nvs: %s", softap_ssid);
-    } else {
 #ifdef CONFIG_BRIDGE_SOFTAP_SSID_END_WITH_THE_MAC
-        snprintf(softap_ssid, sizeof(softap_ssid), "%.25s_%02x%02x%02x", CONFIG_BRIDGE_SOFTAP_SSID, softap_mac[3], softap_mac[4], softap_mac[5]);
+    snprintf(softap_ssid, sizeof(softap_ssid), "%.25s_%02x%02x%02x", CONFIG_BRIDGE_SOFTAP_SSID, softap_mac[3], softap_mac[4], softap_mac[5]);
 #else
-        snprintf(softap_ssid, sizeof(softap_ssid), "%.32s", CONFIG_BRIDGE_SOFTAP_SSID);
+    snprintf(softap_ssid, sizeof(softap_ssid), "%.32s", CONFIG_BRIDGE_SOFTAP_SSID);
 #endif
-        ESP_LOGI(TAG, "Get ssid from nvs failed, set ssid: %s", softap_ssid);
-    }
+    ESP_LOGI(TAG, "Set mesh SoftAP SSID: %s", softap_ssid);
 
-    if (esp_mesh_lite_get_softap_psw_from_nvs(softap_psw, &psw_size) == ESP_OK) {
-        ESP_LOGI(TAG, "Get psw from nvs: [HIDDEN]");
-    } else {
-        strlcpy(softap_psw, CONFIG_BRIDGE_SOFTAP_PASSWORD, sizeof(softap_psw));
-        ESP_LOGI(TAG, "Get psw from nvs failed, set psw: [HIDDEN]");
-    }
+    // Use the build's shared mesh SoftAP key on every node instead of a
+    // potentially stale per-device value left in NVS by older firmware.
+    strlcpy(softap_psw, CONFIG_BRIDGE_SOFTAP_PASSWORD, sizeof(softap_psw));
+    ESP_LOGI(TAG, "Set SoftAP password from build config: [HIDDEN]");
 
     esp_mesh_lite_set_softap_info(softap_ssid, softap_psw);
 }
@@ -134,16 +126,22 @@ void app_main()
 
     esp_bridge_create_all_netif();
 
+    // The bridge may restore a stale station profile from NVS and start
+    // associating while it creates the STA netif. Stop Wi-Fi so the profiles
+    // below are applied before either interface can associate.
+    esp_wifi_disconnect();
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     wifi_init();
 
     esp_mesh_lite_config_t mesh_lite_config = ESP_MESH_LITE_DEFAULT_INIT();
     mesh_lite_config.join_mesh_ignore_router_status = true;
-#if CONFIG_MESH_ROOT
-    mesh_lite_config.join_mesh_without_configured_wifi = false;
-#else
+    // This profile intentionally creates a local Mesh-Lite network without
+    // configuring an Internet/router uplink.
     mesh_lite_config.join_mesh_without_configured_wifi = true;
-#endif
     esp_mesh_lite_init(&mesh_lite_config);
+    esp_mesh_lite_set_mesh_id(CONFIG_MESH_LITE_ID, true);
 
     app_wifi_set_softap_info();
 
@@ -155,6 +153,7 @@ void app_main()
     esp_mesh_lite_set_disallowed_level(1);
 #endif
 
+    ESP_ERROR_CHECK(esp_wifi_start());
     esp_mesh_lite_start();
 
     TimerHandle_t timer = xTimerCreate("print_system_info", 10000 / portTICK_PERIOD_MS,

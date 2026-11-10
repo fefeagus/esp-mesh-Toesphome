@@ -28,7 +28,11 @@ GPATH
 .vscode/
 
 build
+build-root
+build-child
 sdkconfig
+sdkconfig.root
+sdkconfig.child
 sdkconfig.old
 dependencies.lock
 

@@ -235,6 +235,7 @@ void app_main()
 
     esp_mesh_lite_config_t mesh_lite_config = ESP_MESH_LITE_DEFAULT_INIT();
     esp_mesh_lite_init(&mesh_lite_config);
+    ESP_ERROR_CHECK(esp_mesh_lite_set_disallowed_level(1));
 
     app_wifi_set_softap_info();
 
